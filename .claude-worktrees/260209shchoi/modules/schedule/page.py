@@ -268,7 +268,7 @@ def page_schedule(con):
             _sel_out2 = st.session_state.get("sched_sel_out_slots", [])
             _admin_sel2 = st.session_state.get("admin_sel_sched_list", [])
             _user_sel2  = st.session_state.get("user_sel_sched_list", [])
-            if not (_sel_in2 or _sel_out2 or _admin_sel2 or _user_sel2):
+            if mobile_step == 2 and not (_sel_in2 or _sel_out2 or _admin_sel2 or _user_sel2):
                 st.info("← 뒤로가기를 눌러 타임라인에서 슬롯을 선택하세요.")
 
             # ── 슬롯 선택 시: 기존 예약 정보 로드 ────────────────────────────
