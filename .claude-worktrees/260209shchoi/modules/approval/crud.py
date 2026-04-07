@@ -2,6 +2,7 @@
 import json
 import uuid
 from typing import Dict, Any, List, Optional, Tuple
+import streamlit as st
 from supabase import Client
 from shared.helpers import now_str
 from db.models import settings_get
@@ -23,15 +24,16 @@ def approvals_create_default(sb: Client, rid: str, kind: str) -> None:
         for i, role in enumerate(roles, start=1)
     ]
     sb.table("approvals").insert(rows).execute()
+    st.cache_data.clear()
 
 
+@st.cache_data(ttl=3)
 def approvals_inbox(
-    sb: Client, user_role: str, is_admin: bool,
+    _sb: Client, user_role: str, is_admin: bool,
     project_id: str = "",
 ) -> List[Dict[str, Any]]:
-    import streamlit as st
     pid = project_id or st.session_state.get("PROJECT_ID", "")
-    res = sb.rpc("rpc_approvals_inbox", {
+    res = _sb.rpc("rpc_approvals_inbox", {
         "p_project_id": pid,
         "p_user_role": user_role,
         "p_is_admin": is_admin,
@@ -39,8 +41,9 @@ def approvals_inbox(
     return res.data or []
 
 
-def approvals_for_req(sb: Client, rid: str) -> List[Dict[str, Any]]:
-    res = sb.table("approvals").select("*").eq("req_id", rid).order("step_no").execute()
+@st.cache_data(ttl=3)
+def approvals_for_req(_sb: Client, rid: str) -> List[Dict[str, Any]]:
+    res = _sb.table("approvals").select("*").eq("req_id", rid).order("step_no").execute()
     return res.data or []
 
 
@@ -66,4 +69,5 @@ def approval_mark(
     result = res.data or {}
     if isinstance(result, list):
         result = result[0] if result else {}
+    st.cache_data.clear()
     return result.get("rid", ""), result.get("msg", "처리 완료")

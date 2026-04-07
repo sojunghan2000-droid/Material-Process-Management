@@ -19,12 +19,18 @@ def _pending_my_requests(sb: Client, project_id: str, user_name: str):
            .order("created_at", desc=True)
            .execute())
     reqs = res.data or []
+    if not reqs:
+        return []
+    req_ids = [r["id"] for r in reqs]
+    ap_res = (sb.table("approvals").select("req_id,role_required,status,step_no")
+              .in_("req_id", req_ids).eq("status", "PENDING")
+              .order("step_no").execute())
+    ap_map = {}
+    for ap in (ap_res.data or []):
+        ap_map.setdefault(ap["req_id"], ap)
     result = []
     for r in reqs:
-        ap_res = (sb.table("approvals").select("role_required,status,step_no")
-                  .eq("req_id", r["id"]).eq("status", "PENDING")
-                  .order("step_no").limit(1).execute())
-        ap = ap_res.data[0] if ap_res.data else {}
+        ap = ap_map.get(r["id"], {})
         result.append({**r, "role_required": ap.get("role_required"), "ap_status": ap.get("status"), "step_no": ap.get("step_no")})
     return result
 

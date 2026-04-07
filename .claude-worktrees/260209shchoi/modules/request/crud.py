@@ -1,6 +1,7 @@
 """Request CRUD operations (Supabase)."""
 import uuid
 from typing import Dict, Any, List, Optional
+import streamlit as st
 from supabase import Client
 from shared.helpers import now_str
 
@@ -23,26 +24,28 @@ def req_insert(sb: Client, data: Dict[str, Any]) -> str:
         **{k: data.get(k) for k in cols if k not in ("id", "created_at", "updated_at", "status")},
     }
     sb.table("requests").insert(row).execute()
+    st.cache_data.clear()
     return rid
 
 
-def req_get(sb: Client, rid: str) -> Optional[Dict[str, Any]]:
+@st.cache_data(ttl=5)
+def req_get(_sb: Client, rid: str) -> Optional[Dict[str, Any]]:
     """Get a single request by ID, including day_seq for display ID."""
-    res = sb.rpc("rpc_req_get", {"p_req_id": rid}).execute()
+    res = _sb.rpc("rpc_req_get", {"p_req_id": rid}).execute()
     return res.data if isinstance(res.data, dict) else (res.data[0] if res.data else None)
 
 
+@st.cache_data(ttl=5)
 def req_list(
-    sb: Client,
+    _sb: Client,
     status: Optional[str] = None,
     kind: Optional[str] = None,
     limit: int = 300,
     project_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """List requests with optional filters, including day_seq."""
-    import streamlit as st
     pid = project_id or st.session_state.get("PROJECT_ID", "")
-    res = sb.rpc("rpc_req_list", {
+    res = _sb.rpc("rpc_req_list", {
         "p_project_id": pid or "",
         "p_status": status,
         "p_kind": kind,
@@ -53,12 +56,14 @@ def req_list(
 
 def req_update_status(sb: Client, rid: str, status: str) -> None:
     sb.table("requests").update({"status": status, "updated_at": now_str()}).eq("id", rid).execute()
+    st.cache_data.clear()
 
 
 def req_update_time(sb: Client, rid: str, time_from: str, time_to: str) -> None:
     sb.table("requests").update({
         "time_from": time_from, "time_to": time_to, "updated_at": now_str(),
     }).eq("id", rid).execute()
+    st.cache_data.clear()
 
 
 def req_delete(sb: Client, rid: str) -> None:
@@ -69,3 +74,4 @@ def req_delete(sb: Client, rid: str) -> None:
     sb.table("outputs").delete().eq("req_id", rid).execute()
     sb.table("schedules").delete().eq("req_id", rid).execute()
     sb.table("requests").delete().eq("id", rid).execute()
+    st.cache_data.clear()

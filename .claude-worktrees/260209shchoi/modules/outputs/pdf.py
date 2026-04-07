@@ -164,7 +164,23 @@ def pdf_plan(
 
     # ── 사진대지 (2×2 표 형태, 가로 페이지) ─────────────────────────
     if photos:
-        valid = [p for p in photos if p.get("file_path") and Path(p["file_path"]).exists()]
+        def _img_reader(photo: dict):
+            """storage_url → URL fetch, 없으면 로컬 file_path."""
+            url = photo.get("storage_url", "")
+            if url:
+                try:
+                    import urllib.request
+                    from io import BytesIO
+                    with urllib.request.urlopen(url, timeout=10) as r:
+                        return ImageReader(BytesIO(r.read()))
+                except Exception:
+                    pass
+            fp = photo.get("file_path", "")
+            if fp and Path(fp).exists():
+                return ImageReader(str(fp))
+            return None
+
+        valid = [p for p in photos if p.get("storage_url") or (p.get("file_path") and Path(p["file_path"]).exists())]
         from reportlab.lib.pagesizes import landscape
         pw, ph = landscape(A4)   # 가로: 297mm, 세로: 210mm
         margin_x = 12 * mm
@@ -197,19 +213,24 @@ def pdf_plan(
                 c.line(px, py, px + col_w, py)
 
                 pad = 2 * mm
-                try:
-                    c.drawImage(
-                        ImageReader(str(photo["file_path"])),
-                        px + pad, py + pad,
-                        width=col_w - pad * 2,
-                        height=img_h - pad * 2,
-                        preserveAspectRatio=True,
-                        anchor='c',
-                        mask="auto",
-                    )
-                except Exception:
+                img_reader = _img_reader(photo)
+                if img_reader:
+                    try:
+                        c.drawImage(
+                            img_reader,
+                            px + pad, py + pad,
+                            width=col_w - pad * 2,
+                            height=img_h - pad * 2,
+                            preserveAspectRatio=True,
+                            anchor='c',
+                            mask="auto",
+                        )
+                    except Exception:
+                        c.setFont(_FONT_NORMAL, 9)
+                        c.drawCentredString(px + col_w / 2, py + img_h / 2, "(사진 로드 실패)")
+                else:
                     c.setFont(_FONT_NORMAL, 9)
-                    c.drawCentredString(px + col_w / 2, py + img_h / 2, "(사진 로드 실패)")
+                    c.drawCentredString(px + col_w / 2, py + img_h / 2, "(사진 없음)")
 
                 c.setFont(_FONT_NORMAL, 8)
                 c.setFillColorRGB(0, 0, 0)

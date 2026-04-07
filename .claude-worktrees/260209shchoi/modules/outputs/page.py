@@ -57,7 +57,6 @@ def page_outputs(sb: Client):
         except Exception as e:
             st.error(f"생성 오류: {e}")
         st.rerun()
-    outs = outputs_get(sb, rid)
     if outs:
         p = outs.get("plan_pdf_path", "")
         if p and Path(p).exists():

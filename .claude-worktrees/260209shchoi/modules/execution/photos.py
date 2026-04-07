@@ -106,8 +106,9 @@ def ui_photo_capture_required(sb: Client, rid: str):
     </style>
     """, unsafe_allow_html=True)
     st.markdown("#### 1. 필수 사진(3종)")
+    _all_photos = photos_for_req(sb, rid)
     for slot_key, label in EXEC_REQUIRED_PHOTOS:
-        existing = next((p for p in photos_for_req(sb, rid) if p['slot_key'] == slot_key), None)
+        existing = next((p for p in _all_photos if p['slot_key'] == slot_key), None)
         change_key = f"photo_change_{rid}_{slot_key}"
         if existing and not st.session_state.get(change_key, False):
             # 라벨 + 등록됨 배지 한 줄 (HTML inline), 변경 버튼은 사진 아래
@@ -119,9 +120,13 @@ def ui_photo_capture_required(sb: Client, rid: str):
                 f"</div>",
                 unsafe_allow_html=True
             )
-            img_path = Path(existing['file_path'])
-            if img_path.exists():
-                st.image(str(img_path), width=480)
+            img_src = existing.get('storage_url') or ""
+            if not img_src:
+                img_path = Path(existing.get('file_path', ''))
+                if img_path.exists():
+                    img_src = str(img_path)
+            if img_src:
+                st.image(img_src, width=480)
             if st.button("변경", key=f"photo_change_btn_{slot_key}", use_container_width=False):
                 st.session_state[change_key] = True
                 st.rerun()

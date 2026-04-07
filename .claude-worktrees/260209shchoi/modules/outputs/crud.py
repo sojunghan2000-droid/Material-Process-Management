@@ -3,6 +3,7 @@ import json
 import zipfile
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+import streamlit as st
 from supabase import Client
 
 from reportlab.lib.pagesizes import A4
@@ -29,16 +30,19 @@ from modules.outputs.pdf import (
 
 def outputs_upsert(sb: Client, rid: str, **paths: str) -> None:
     """Insert or update output file paths for a request."""
+    import streamlit as st
     existing = sb.table("outputs").select("req_id").eq("req_id", rid).limit(1).execute()
     if not existing.data:
         sb.table("outputs").insert({"req_id": rid, "created_at": now_str(), "updated_at": now_str()}).execute()
     for k, v in paths.items():
         if v is not None:
             sb.table("outputs").update({k: v, "updated_at": now_str()}).eq("req_id", rid).execute()
+    st.cache_data.clear()
 
 
-def outputs_get(sb: Client, rid: str) -> Optional[Dict[str, Any]]:
-    res = sb.table("outputs").select("*").eq("req_id", rid).limit(1).execute()
+@st.cache_data(ttl=5)
+def outputs_get(_sb: Client, rid: str) -> Optional[Dict[str, Any]]:
+    res = _sb.table("outputs").select("*").eq("req_id", rid).limit(1).execute()
     return res.data[0] if res.data else None
 
 
