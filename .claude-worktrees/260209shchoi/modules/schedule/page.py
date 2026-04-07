@@ -152,6 +152,7 @@ def page_schedule(con):
         ("sched_sel_out_slots",  []),
         ("sched_last_kind",      "반입"),
         ("user_sel_sched_list",  []),
+        ("sched_mobile_step",    1),
     ]:
         if key not in st.session_state:
             st.session_state[key] = default
@@ -163,69 +164,97 @@ def page_schedule(con):
     current_date = st.session_state["sched_current_date"]
     schedule_sync_from_requests(con, project_id)
 
+    mobile_step = st.session_state.get("sched_mobile_step", 1)
     col_left, col_right = st.columns([3, 2], gap="large")
 
     # ── LEFT: 날짜 네비 + 타임라인 ───────────────────────────────────────────
+    # 모바일 step2에서 숨기기 위해 key 변경
+    _left_key  = "sched_col_left_step2"  if mobile_step == 2 else "sched_col_left_step1"
+    _right_key = "sched_col_right_step1" if mobile_step == 1 else "sched_col_right_step2"
+
     with col_left:
-        st.markdown("#### 📅 일정 현황")
+        with st.container(key=_left_key):
+            st.markdown("#### 📅 일정 현황")
 
-        with st.container(key="sched_nav_row"):
-            nav1, nav2, nav3 = st.columns([1, 1.75, 1])
-            with nav1:
-                if st.button("‹ 전일", key="sched_prev", use_container_width=True,
-                             disabled=(current_date <= date.today())):
-                    new_date = current_date - timedelta(days=1)
-                    st.session_state["sched_current_date"]  = new_date
-                    st.session_state["sched_pending_date"]  = new_date
-                    st.session_state["sched_sel_in_slots"]  = []
-                    st.session_state["sched_sel_out_slots"] = []
-                    st.session_state["user_sel_sched_list"] = []
-                    st.rerun()
-            with nav2:
-                today = date.today()
-                picked = st.date_input(
-                    "날짜", value=current_date,
-                    min_value=today,
-                    max_value=today + timedelta(days=2),
-                    key="sched_date_pick", label_visibility="collapsed",
-                )
-                if picked != current_date:
-                    st.session_state["sched_current_date"]  = picked
-                    st.session_state["sched_sel_in_slots"]  = []
-                    st.session_state["sched_sel_out_slots"] = []
-                    st.session_state["user_sel_sched_list"] = []
-                    st.rerun()
-            with nav3:
-                if st.button("익일 ›", key="sched_next", use_container_width=True,
-                             disabled=(current_date >= date.today() + timedelta(days=2))):
-                    new_date = current_date + timedelta(days=1)
-                    st.session_state["sched_current_date"]  = new_date
-                    st.session_state["sched_pending_date"]  = new_date
-                    st.session_state["sched_sel_in_slots"]  = []
-                    st.session_state["sched_sel_out_slots"] = []
-                    st.session_state["user_sel_sched_list"] = []
-                    st.rerun()
+            with st.container(key="sched_nav_row"):
+                nav1, nav2, nav3 = st.columns([1, 1.75, 1])
+                with nav1:
+                    if st.button("‹ 전일", key="sched_prev", use_container_width=True,
+                                 disabled=(current_date <= date.today())):
+                        new_date = current_date - timedelta(days=1)
+                        st.session_state["sched_current_date"]  = new_date
+                        st.session_state["sched_pending_date"]  = new_date
+                        st.session_state["sched_sel_in_slots"]  = []
+                        st.session_state["sched_sel_out_slots"] = []
+                        st.session_state["user_sel_sched_list"] = []
+                        st.session_state["sched_mobile_step"]   = 1
+                        st.rerun()
+                with nav2:
+                    today = date.today()
+                    picked = st.date_input(
+                        "날짜", value=current_date,
+                        min_value=today,
+                        max_value=today + timedelta(days=2),
+                        key="sched_date_pick", label_visibility="collapsed",
+                    )
+                    if picked != current_date:
+                        st.session_state["sched_current_date"]  = picked
+                        st.session_state["sched_sel_in_slots"]  = []
+                        st.session_state["sched_sel_out_slots"] = []
+                        st.session_state["user_sel_sched_list"] = []
+                        st.session_state["sched_mobile_step"]   = 1
+                        st.rerun()
+                with nav3:
+                    if st.button("익일 ›", key="sched_next", use_container_width=True,
+                                 disabled=(current_date >= date.today() + timedelta(days=2))):
+                        new_date = current_date + timedelta(days=1)
+                        st.session_state["sched_current_date"]  = new_date
+                        st.session_state["sched_pending_date"]  = new_date
+                        st.session_state["sched_sel_in_slots"]  = []
+                        st.session_state["sched_sel_out_slots"] = []
+                        st.session_state["user_sel_sched_list"] = []
+                        st.session_state["sched_mobile_step"]   = 1
+                        st.rerun()
 
-        date_str  = current_date.isoformat()
-        schedules = schedule_list_by_date(con, project_id, date_str)
+            date_str  = current_date.isoformat()
+            schedules = schedule_list_by_date(con, project_id, date_str)
 
-        # schedules에 requester_name 첨부 (본인 예약 식별용)
-        _req_ids = [s["req_id"] for s in schedules if s.get("req_id")]
-        if _req_ids:
-            _res = con.table("requests").select("id,requester_name").in_("id", _req_ids).execute()
-            _rmap = {r["id"]: (r.get("requester_name") or "") for r in (_res.data or [])}
-        else:
-            _rmap = {}
-        for s in schedules:
-            s["requester_name"] = _rmap.get(s.get("req_id", ""), "")
+            # schedules에 requester_name 첨부 (본인 예약 식별용)
+            _req_ids = [s["req_id"] for s in schedules if s.get("req_id")]
+            if _req_ids:
+                _res = con.table("requests").select("id,requester_name").in_("id", _req_ids).execute()
+                _rmap = {r["id"]: (r.get("requester_name") or "") for r in (_res.data or [])}
+            else:
+                _rmap = {}
+            for s in schedules:
+                s["requester_name"] = _rmap.get(s.get("req_id", ""), "")
 
-        render_timeline(schedules, is_admin=is_admin, user_name=user_name)
+            render_timeline(schedules, is_admin=is_admin, user_name=user_name)
 
-        render_daily_summary(schedules)
+            render_daily_summary(schedules)
+
+            # ── 모바일 "다음(예약하기)" 버튼 — 슬롯 선택 시만 표시 ──────────
+            sel_in    = st.session_state.get("sched_sel_in_slots", [])
+            sel_out   = st.session_state.get("sched_sel_out_slots", [])
+            admin_sel = st.session_state.get("admin_sel_sched_list", [])
+            user_sel  = st.session_state.get("user_sel_sched_list", [])
+            _has_sel  = bool(sel_in or sel_out or admin_sel or user_sel)
+            with st.container(key="sched_mobile_next_wrap"):
+                if _has_sel:
+                    if st.button("▶ 다음 (예약하기)", key="sched_mobile_next", use_container_width=True, type="primary"):
+                        st.session_state["sched_mobile_step"] = 2
+                        st.rerun()
 
     # ── RIGHT: 반입·반출 예약 신청 (슬롯 선택 시 기존 정보 자동 입력) ────────
     with col_right:
-        admin_sel_list = st.session_state.get("admin_sel_sched_list", [])
+        with st.container(key=_right_key):
+            # ── 모바일 "뒤로가기" 버튼 ────────────────────────────────────────
+            with st.container(key="sched_mobile_back_wrap"):
+                if st.button("← 뒤로가기", key="sched_mobile_back", use_container_width=False):
+                    st.session_state["sched_mobile_step"] = 1
+                    st.rerun()
+
+            admin_sel_list = st.session_state.get("admin_sel_sched_list", [])
         user_sel_list  = st.session_state.get("user_sel_sched_list", []) if not is_admin else []
         is_admin_edit  = is_admin and bool(admin_sel_list)
         is_user_edit   = not is_admin and bool(user_sel_list)
@@ -233,6 +262,14 @@ def page_schedule(con):
         sel_list       = admin_sel_list if is_admin_edit else user_sel_list
 
         st.markdown("#### 📝 반입·반출 예약 신청")
+
+        # step2에서 슬롯이 없을 때 안내
+        _sel_in2  = st.session_state.get("sched_sel_in_slots", [])
+        _sel_out2 = st.session_state.get("sched_sel_out_slots", [])
+        _admin_sel2 = st.session_state.get("admin_sel_sched_list", [])
+        _user_sel2  = st.session_state.get("user_sel_sched_list", [])
+        if not (_sel_in2 or _sel_out2 or _admin_sel2 or _user_sel2):
+            st.info("← 뒤로가기를 눌러 타임라인에서 슬롯을 선택하세요.")
 
         # ── 슬롯 선택 시: 기존 예약 정보 로드 ────────────────────────────
         if is_edit:

@@ -1225,5 +1225,66 @@ def inject_css():
       margin: 0 !important;
       line-height: 1.5 !important;
     }
+
+    /* ── 모바일 2-Step: 다음/뒤로가기 버튼 ── */
+    /* 데스크톱·태블릿: 다음/뒤로가기 숨김 */
+    .st-key-sched_mobile_next_wrap,
+    .st-key-sched_mobile_back_wrap {
+      display: none !important;
+    }
+
+    @media (max-width: 480px) {
+      /* 다음 버튼: 표시 */
+      .st-key-sched_mobile_next_wrap {
+        display: block !important;
+        margin-top: 12px !important;
+      }
+      /* 뒤로가기 버튼: 표시 */
+      .st-key-sched_mobile_back_wrap {
+        display: block !important;
+        margin-bottom: 12px !important;
+      }
+      /* Step 1: sched_col_right 숨김 */
+      .st-key-sched_col_right_step1 {
+        display: none !important;
+      }
+      /* Step 2: sched_col_left 숨김 */
+      .st-key-sched_col_left_step2 {
+        display: none !important;
+      }
+    }
+
+    /* ── Phase 2: 타임라인 3컬럼 모바일 정리 ── */
+    @media (max-width: 480px) {
+      /* 시간 컬럼: 40px 고정 */
+      .st-key-tl_header [data-testid="stColumn"]:first-child,
+      [class*="st-key-tl_row_"] [data-testid="stColumn"]:first-child {
+        flex: 0 0 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        overflow: hidden !important;
+      }
+      .tl-time {
+        font-size: 9px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        padding: 2px 1px !important;
+      }
+      /* 반입·반출 컬럼: 균등 분배 */
+      .st-key-tl_header [data-testid="stColumn"]:not(:first-child),
+      [class*="st-key-tl_row_"] [data-testid="stColumn"]:not(:first-child) {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        max-width: none !important;
+      }
+      /* 버튼 텍스트 */
+      [class*="st-key-tl_row_"] [data-testid="stColumn"]:not(:first-child) button {
+        font-size: 11px !important;
+        padding: 0 2px !important;
+      }
+      [class*="st-key-tl_row_"] [data-testid="stColumn"]:not(:first-child) button p {
+        font-size: 11px !important;
+      }
+    }
     </style>
     """, unsafe_allow_html=True)
