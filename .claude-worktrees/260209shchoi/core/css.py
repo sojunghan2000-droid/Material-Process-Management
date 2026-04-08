@@ -1244,32 +1244,24 @@ def inject_css():
         display: block !important;
         margin-bottom: 12px !important;
       }
-      /* ── 2-Step 열 hide + 가시 열 100% 확장 ── */
-      /* Step 1: 우열(예약폼) 숨김 */
-      .st-key-sched_layout_step1 > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+      /* ── 2-Step 열 hide: :has() 로 stColumn 자체를 숨김 ── */
+      /* sentinel key sched_tl_hidden → 좌열(타임라인) stColumn 숨김 */
+      [data-testid="stColumn"]:has(.st-key-sched_tl_hidden) {
         display: none !important;
+        flex: 0 0 0% !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
+        padding: 0 !important;
       }
-      /* Step 1: 좌열(타임라인) 100% */
-      .st-key-sched_layout_step1 > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-        gap: 0 !important;
-      }
-      .st-key-sched_layout_step1 > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
-        flex: 0 0 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-      }
-      /* Step 2: 좌열(타임라인) 숨김 */
-      .st-key-sched_layout_step2 > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+      /* sentinel key sched_form_hidden → 우열(예약폼) stColumn 숨김 */
+      [data-testid="stColumn"]:has(.st-key-sched_form_hidden) {
         display: none !important;
-      }
-      /* Step 2: 우열(예약폼) 100% */
-      .st-key-sched_layout_step2 > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-        gap: 0 !important;
-      }
-      .st-key-sched_layout_step2 > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
-        flex: 0 0 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
+        flex: 0 0 0% !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
+        padding: 0 !important;
       }
     }
 
