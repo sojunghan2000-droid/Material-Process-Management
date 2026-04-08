@@ -1,8 +1,11 @@
 """Unified 계획 page — schedule timeline + request form side by side."""
+import time
 import streamlit as st
 from datetime import date, timedelta
 
-from modules.schedule.crud import schedule_list_by_date, schedule_sync_from_requests
+from modules.schedule.crud import (
+    schedule_list_by_date, schedule_sync_from_requests, schedule_requester_names,
+)
 from modules.schedule.components.timeline import render_timeline, BLOCKING_STATUSES
 from modules.schedule.components.summary import render_daily_summary
 from modules.schedule.css.schedule import get_schedule_css
@@ -162,7 +165,11 @@ def page_schedule(con):
         st.session_state["sched_date_pick"] = st.session_state.pop("sched_pending_date")
 
     current_date = st.session_state["sched_current_date"]
-    schedule_sync_from_requests(con, project_id)
+    # ── 5초 쓰로틀: 마지막 sync로부터 5초 이상 지난 경우에만 실행 ────────────
+    _now = time.time()
+    if _now - st.session_state.get("_sched_sync_ts", 0) > 5:
+        schedule_sync_from_requests(con, project_id)
+        st.session_state["_sched_sync_ts"] = _now
 
     mobile_step = st.session_state.get("sched_mobile_step", 1)
     col_left, col_right = st.columns([3, 2], gap="large")
@@ -219,13 +226,9 @@ def page_schedule(con):
             date_str  = current_date.isoformat()
             schedules = schedule_list_by_date(con, project_id, date_str)
 
-            # schedules에 requester_name 첨부 (본인 예약 식별용)
-            _req_ids = [s["req_id"] for s in schedules if s.get("req_id")]
-            if _req_ids:
-                _res = con.table("requests").select("id,requester_name").in_("id", _req_ids).execute()
-                _rmap = {r["id"]: (r.get("requester_name") or "") for r in (_res.data or [])}
-            else:
-                _rmap = {}
+            # ④ schedules에 requester_name 첨부 (캐시 함수 사용 — 5초 TTL)
+            _req_ids = tuple(s["req_id"] for s in schedules if s.get("req_id"))
+            _rmap = schedule_requester_names(con, _req_ids)
             for s in schedules:
                 s["requester_name"] = _rmap.get(s.get("req_id", ""), "")
 

@@ -1,5 +1,6 @@
 """Schedule CRUD operations (Supabase)."""
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
+import streamlit as st
 from supabase import Client
 from shared.helpers import now_str, new_id
 
@@ -23,14 +24,26 @@ def schedule_insert(sb: Client, project_id: str, data: dict) -> str:
         "created_by":    data.get("created_by", ""),
         "created_at":    now_str(),
     }).execute()
+    st.cache_data.clear()   # ③ 캐시 무효화 — 삽입 즉시 타임라인 반영
     return sid
 
 
-def schedule_list_by_date(sb: Client, project_id: str, schedule_date: str) -> List[Dict[str, Any]]:
-    res = (sb.table("schedules").select("*")
+@st.cache_data(ttl=5)
+def schedule_list_by_date(_sb: Client, project_id: str, schedule_date: str) -> List[Dict[str, Any]]:
+    """② 5초 캐시 — 슬롯 클릭 등 일반 인터랙션 시 DB 조회 생략."""
+    res = (_sb.table("schedules").select("*")
            .eq("project_id", project_id).eq("schedule_date", schedule_date)
            .order("time_from").execute())
     return res.data or []
+
+
+@st.cache_data(ttl=5)
+def schedule_requester_names(_sb: Client, req_ids_tuple: Tuple[str, ...]) -> Dict[str, str]:
+    """④ requester_name 캐시 함수 — 타임라인 소유자 식별용."""
+    if not req_ids_tuple:
+        return {}
+    res = _sb.table("requests").select("id,requester_name").in_("id", list(req_ids_tuple)).execute()
+    return {r["id"]: (r.get("requester_name") or "") for r in (res.data or [])}
 
 
 def schedule_update(sb: Client, sid: str, **kwargs) -> None:
@@ -41,10 +54,12 @@ def schedule_update(sb: Client, sid: str, **kwargs) -> None:
     filtered = {k: v for k, v in kwargs.items() if k in allowed}
     if filtered:
         sb.table("schedules").update(filtered).eq("id", sid).execute()
+        st.cache_data.clear()   # ③ 수정 즉시 타임라인 반영
 
 
 def schedule_delete(sb: Client, sid: str) -> None:
     sb.table("schedules").delete().eq("id", sid).execute()
+    st.cache_data.clear()   # ③ 삭제 즉시 타임라인 반영
 
 
 def schedule_get(sb: Client, sid: str) -> Optional[Dict[str, Any]]:
@@ -53,7 +68,9 @@ def schedule_get(sb: Client, sid: str) -> Optional[Dict[str, Any]]:
 
 
 def schedule_sync_from_requests(sb: Client, project_id: str) -> None:
-    """Sync schedule entries from approved/pending requests (auto-populate)."""
+    """Sync schedule entries from approved/pending requests (auto-populate).
+    ⑤ bulk INSERT 최적화 — N건의 개별 INSERT → 1회 bulk INSERT.
+    """
     # 1. 대상 requests 조회
     req_res = (sb.table("requests").select("*")
                .eq("project_id", project_id)
@@ -71,6 +88,8 @@ def schedule_sync_from_requests(sb: Client, project_id: str) -> None:
     linked_ids = {r["req_id"] for r in (sched_res.data or [])}
 
     from config import TIME_SLOTS
+    bulk_rows = []   # ⑤ bulk INSERT용 수집 리스트
+
     for r in all_reqs:
         if r.get("id") in linked_ids:
             continue
@@ -104,7 +123,19 @@ def schedule_sync_from_requests(sb: Client, project_id: str) -> None:
             "created_by":    "system",
         }
         for sf, st_ in slot_pairs:
-            schedule_insert(sb, project_id, {**base, "time_from": sf, "time_to": st_})
+            bulk_rows.append({
+                "id":            new_id(),
+                "project_id":    project_id,
+                "created_at":    now_str(),
+                **base,
+                "time_from": sf,
+                "time_to":   st_,
+            })
+
+    # ⑤ 신규 rows가 있을 때만 한 번에 bulk INSERT
+    if bulk_rows:
+        sb.table("schedules").insert(bulk_rows).execute()
+        st.cache_data.clear()   # ③ sync insert 후 타임라인 즉시 반영
 
 
 def _add_30min(time_str: str) -> str:
