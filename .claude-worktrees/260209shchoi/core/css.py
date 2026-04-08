@@ -1244,8 +1244,19 @@ def inject_css():
         display: block !important;
         margin-bottom: 12px !important;
       }
-      /* ── 2-Step 열 hide: :has() 로 stColumn 자체를 숨김 ── */
-      /* sentinel key sched_tl_hidden → 좌열(타임라인) stColumn 숨김 */
+      /* ── 2-Step 열 hide ── */
+      /* Step1: 우열 폼 컨테이너 숨김 (sched_form_hidden 자체 + 부모 stColumn) */
+      .st-key-sched_form_hidden,
+      [data-testid="stColumn"]:has(.st-key-sched_form_hidden) {
+        display: none !important;
+        flex: 0 0 0% !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+      }
+      /* Step2: 좌열 타임라인 컨테이너 숨김 (sched_tl_hidden 자체 + 부모 stColumn) */
+      .st-key-sched_tl_hidden,
       [data-testid="stColumn"]:has(.st-key-sched_tl_hidden) {
         display: none !important;
         flex: 0 0 0% !important;
@@ -1254,14 +1265,12 @@ def inject_css():
         overflow: hidden !important;
         padding: 0 !important;
       }
-      /* sentinel key sched_form_hidden → 우열(예약폼) stColumn 숨김 */
-      [data-testid="stColumn"]:has(.st-key-sched_form_hidden) {
-        display: none !important;
-        flex: 0 0 0% !important;
-        min-width: 0 !important;
-        max-width: 0 !important;
-        overflow: hidden !important;
-        padding: 0 !important;
+      /* 가시 열 100% 확장 */
+      [data-testid="stColumn"]:has(.st-key-sched_form_active),
+      [data-testid="stColumn"]:has(.st-key-sched_tl_active) {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
       }
     }
 
