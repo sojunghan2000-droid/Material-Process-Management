@@ -155,7 +155,7 @@ def page_schedule(con):
         ("sched_sel_out_slots",  []),
         ("sched_last_kind",      "반입"),
         ("user_sel_sched_list",  []),
-        ("sched_mobile_step",    1),
+        ("sched_show_form",       False),
     ]:
         if key not in st.session_state:
             st.session_state[key] = default
@@ -171,17 +171,34 @@ def page_schedule(con):
         schedule_sync_from_requests(con, project_id)
         st.session_state["_sched_sync_ts"] = _now
 
-    mobile_step = st.session_state.get("sched_mobile_step", 1)
     col_left, col_right = st.columns([3, 2], gap="large")
 
-    # ── LEFT: 날짜 네비 + 타임라인 ───────────────────────────────────────────
-    # 모바일 2-Step: :has() CSS로 stColumn 자체를 hide. key로 sentinel
-    _left_key  = "sched_tl_hidden"   if mobile_step == 2 else "sched_tl_active"
-    _right_key = "sched_form_hidden" if mobile_step == 1 else "sched_form_active"
+    # ── 모바일 2-Step CSS (동적 주입) ────────────────────────────────────────
+    _show_form = st.session_state.get("sched_show_form", False)
+    if _show_form:
+        st.markdown("""<style>
+.st-key-sched_step_next_btn{display:none!important}
+.st-key-sched_step_back_btn{display:none!important}
+@media(max-width:480px){
+ .st-key-sched_step_back_btn{display:block!important}
+ .stColumn:has(.st-key-sched_nav_row){display:none!important}
+ .stHorizontalBlock:has(.st-key-sched_step_back_btn){gap:0!important}
+ .stColumn:has(.st-key-sched_step_back_btn){flex:0 0 100%!important;max-width:100%!important;min-width:0!important}
+}</style>""", unsafe_allow_html=True)
+    else:
+        st.markdown("""<style>
+.st-key-sched_step_next_btn{display:none!important}
+.st-key-sched_step_back_btn{display:none!important}
+@media(max-width:480px){
+ .st-key-sched_step_next_btn{display:block!important}
+ .stColumn:has(.st-key-sched_step_back_btn){display:none!important}
+ .stHorizontalBlock:has(.st-key-sched_nav_row){gap:0!important}
+ .stColumn:has(.st-key-sched_nav_row){flex:0 0 100%!important;max-width:100%!important;min-width:0!important}
+}</style>""", unsafe_allow_html=True)
 
+    # ── LEFT: 날짜 네비 + 타임라인 ───────────────────────────────────────────
     with col_left:
-        with st.container(key=_left_key):
-            st.markdown("#### 📅 일정 현황")
+        st.markdown("#### 📅 일정 현황")
 
             with st.container(key="sched_nav_row"):
                 nav1, nav2, nav3 = st.columns([1, 1.75, 1])
@@ -194,7 +211,7 @@ def page_schedule(con):
                         st.session_state["sched_sel_in_slots"]  = []
                         st.session_state["sched_sel_out_slots"] = []
                         st.session_state["user_sel_sched_list"] = []
-                        st.session_state["sched_mobile_step"]   = 1
+                        st.session_state["sched_show_form"]     = False
                         st.rerun()
                 with nav2:
                     today = date.today()
@@ -209,7 +226,7 @@ def page_schedule(con):
                         st.session_state["sched_sel_in_slots"]  = []
                         st.session_state["sched_sel_out_slots"] = []
                         st.session_state["user_sel_sched_list"] = []
-                        st.session_state["sched_mobile_step"]   = 1
+                        st.session_state["sched_show_form"]     = False
                         st.rerun()
                 with nav3:
                     if st.button("익일 ›", key="sched_next", use_container_width=True,
@@ -220,7 +237,7 @@ def page_schedule(con):
                         st.session_state["sched_sel_in_slots"]  = []
                         st.session_state["sched_sel_out_slots"] = []
                         st.session_state["user_sel_sched_list"] = []
-                        st.session_state["sched_mobile_step"]   = 1
+                        st.session_state["sched_show_form"]     = False
                         st.rerun()
 
             date_str  = current_date.isoformat()
@@ -236,26 +253,25 @@ def page_schedule(con):
 
             render_daily_summary(schedules)
 
-            # ── 모바일 "다음(예약하기)" 버튼 — 슬롯 선택 시만 표시 ──────────
-            sel_in    = st.session_state.get("sched_sel_in_slots", [])
-            sel_out   = st.session_state.get("sched_sel_out_slots", [])
-            admin_sel = st.session_state.get("admin_sel_sched_list", [])
-            user_sel  = st.session_state.get("user_sel_sched_list", [])
-            _has_sel  = bool(sel_in or sel_out or admin_sel or user_sel)
-            with st.container(key="sched_mobile_next_wrap"):
-                if _has_sel:
-                    if st.button("▶ 다음 (예약하기)", key="sched_mobile_next", use_container_width=True, type="primary"):
-                        st.session_state["sched_mobile_step"] = 2
-                        st.rerun()
+            # ── 모바일 Step 1 → Step 2 버튼 ──────────────────────────────────
+            with st.container(key="sched_step_next_btn"):
+                _in_s  = st.session_state.get("sched_sel_in_slots", [])
+                _out_s = st.session_state.get("sched_sel_out_slots", [])
+                _adm_s = st.session_state.get("admin_sel_sched_list", [])
+                _has_sel = bool(_in_s or _out_s or (is_admin and _adm_s))
+                if st.button("➡️ 예약 신청으로", key="sched_goto_form",
+                             disabled=not _has_sel, use_container_width=True, type="primary"):
+                    st.session_state["sched_show_form"] = True
+                    st.rerun()
 
     # ── RIGHT: 반입·반출 예약 신청 (슬롯 선택 시 기존 정보 자동 입력) ────────
     with col_right:
-        with st.container(key=_right_key):
-            # ── 모바일 "뒤로가기" 버튼 ────────────────────────────────────────
-            with st.container(key="sched_mobile_back_wrap"):
-                if st.button("← 뒤로가기", key="sched_mobile_back", use_container_width=False):
-                    st.session_state["sched_mobile_step"] = 1
-                    st.rerun()
+        # ── 모바일 Step 2 → Step 1 버튼 ──────────────────────────────────────
+        with st.container(key="sched_step_back_btn"):
+            if st.button("◀ 일정으로 돌아가기", key="sched_back_to_timeline",
+                         use_container_width=True):
+                st.session_state["sched_show_form"] = False
+                st.rerun()
 
             admin_sel_list = st.session_state.get("admin_sel_sched_list", [])
             user_sel_list  = st.session_state.get("user_sel_sched_list", []) if not is_admin else []
@@ -271,8 +287,8 @@ def page_schedule(con):
             _sel_out2 = st.session_state.get("sched_sel_out_slots", [])
             _admin_sel2 = st.session_state.get("admin_sel_sched_list", [])
             _user_sel2  = st.session_state.get("user_sel_sched_list", [])
-            if mobile_step == 2 and not (_sel_in2 or _sel_out2 or _admin_sel2 or _user_sel2):
-                st.info("← 뒤로가기를 눌러 타임라인에서 슬롯을 선택하세요.")
+            if _show_form and not (_sel_in2 or _sel_out2 or _admin_sel2 or _user_sel2):
+                st.info("◀ 일정으로 돌아가기를 눌러 타임라인에서 슬롯을 선택하세요.")
 
             # ── 슬롯 선택 시: 기존 예약 정보 로드 ────────────────────────────
             if is_edit:

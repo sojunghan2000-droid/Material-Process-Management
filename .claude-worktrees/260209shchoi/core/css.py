@@ -1226,54 +1226,6 @@ def inject_css():
       line-height: 1.5 !important;
     }
 
-    /* ── 모바일 2-Step: 다음/뒤로가기 버튼 ── */
-    /* 데스크톱·태블릿: 다음/뒤로가기 숨김 */
-    .st-key-sched_mobile_next_wrap,
-    .st-key-sched_mobile_back_wrap {
-      display: none !important;
-    }
-
-    @media (max-width: 480px) {
-      /* 다음 버튼: 표시 */
-      .st-key-sched_mobile_next_wrap {
-        display: block !important;
-        margin-top: 12px !important;
-      }
-      /* 뒤로가기 버튼: 표시 */
-      .st-key-sched_mobile_back_wrap {
-        display: block !important;
-        margin-bottom: 12px !important;
-      }
-      /* ── 2-Step 열 hide ── */
-      /* Step1: 우열 폼 컨테이너 숨김 (sched_form_hidden 자체 + 부모 stColumn) */
-      .st-key-sched_form_hidden,
-      [data-testid="stColumn"]:has(.st-key-sched_form_hidden) {
-        display: none !important;
-        flex: 0 0 0% !important;
-        min-width: 0 !important;
-        max-width: 0 !important;
-        overflow: hidden !important;
-        padding: 0 !important;
-      }
-      /* Step2: 좌열 타임라인 컨테이너 숨김 (sched_tl_hidden 자체 + 부모 stColumn) */
-      .st-key-sched_tl_hidden,
-      [data-testid="stColumn"]:has(.st-key-sched_tl_hidden) {
-        display: none !important;
-        flex: 0 0 0% !important;
-        min-width: 0 !important;
-        max-width: 0 !important;
-        overflow: hidden !important;
-        padding: 0 !important;
-      }
-      /* 가시 열 100% 확장 */
-      [data-testid="stColumn"]:has(.st-key-sched_form_active),
-      [data-testid="stColumn"]:has(.st-key-sched_tl_active) {
-        flex: 0 0 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-      }
-    }
-
     /* ── Phase 2: 타임라인 3컬럼 모바일 정리 ── */
     @media (max-width: 480px) {
       /* 시간 컬럼: 40px 고정 */
