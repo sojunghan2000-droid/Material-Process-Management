@@ -18,20 +18,49 @@ except Exception:
 _FONT_NORMAL = "Helvetica"
 _FONT_BOLD   = "Helvetica-Bold"
 try:
-    import os
-    # 폰트 후보 목록: Windows → Linux (Nanum) 순서로 탐색
+    import os, urllib.request, tempfile
+
+    def _download_nanum(url: str, dest: str) -> bool:
+        """폰트를 URL에서 다운로드해 dest에 저장. 성공 시 True."""
+        try:
+            if os.path.exists(dest):
+                return True
+            urllib.request.urlretrieve(url, dest)
+            return os.path.exists(dest)
+        except Exception:
+            return False
+
+    _TMP = tempfile.gettempdir()
+    # 폰트 후보: 로컬 경로 우선, 없으면 GitHub에서 다운로드
+    _NANUM_URL_N = (
+        "https://github.com/googlefonts/nanum-gothic/raw/main/fonts/ttf/NanumGothic-Regular.ttf"
+    )
+    _NANUM_URL_B = (
+        "https://github.com/googlefonts/nanum-gothic/raw/main/fonts/ttf/NanumGothic-Bold.ttf"
+    )
     _candidates_normal = [
-        "C:/Windows/Fonts/malgun.ttf",                                  # Windows
-        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",              # Ubuntu/Debian (fonts-nanum)
-        "/usr/share/fonts/nanum/NanumGothic.ttf",                       # CentOS/RHEL
-        "/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf",         # 대체
+        "C:/Windows/Fonts/malgun.ttf",
+        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+        "/usr/share/fonts/nanum/NanumGothic.ttf",
+        "/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf",
+        os.path.join(_TMP, "NanumGothic.ttf"),   # 캐시 다운로드
     ]
     _candidates_bold = [
         "C:/Windows/Fonts/malgunbd.ttf",
         "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf",
         "/usr/share/fonts/nanum/NanumGothicBold.ttf",
         "/usr/share/fonts/truetype/nanum/NanumBarunGothicBold.ttf",
+        os.path.join(_TMP, "NanumGothicBold.ttf"),
     ]
+
+    # 로컬 경로에 없으면 다운로드 후 /tmp에 캐시
+    _found_normal = any(os.path.exists(p) for p in _candidates_normal[:-1])
+    if not _found_normal:
+        _download_nanum(_NANUM_URL_N, os.path.join(_TMP, "NanumGothic.ttf"))
+    _found_bold = any(os.path.exists(p) for p in _candidates_bold[:-1])
+    if not _found_bold:
+        _download_nanum(_NANUM_URL_B, os.path.join(_TMP, "NanumGothicBold.ttf"))
+
     for _path in _candidates_normal:
         if os.path.exists(_path):
             pdfmetrics.registerFont(TTFont("KoreanFont", _path))
