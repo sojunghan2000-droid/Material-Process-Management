@@ -76,10 +76,12 @@ def new_id() -> str:
     return uuid.uuid4().hex
 
 def req_display_id(r: dict) -> str:
-    """Return display ID in YYMMDD-N format (e.g. 260401-1)."""
-    created = (r.get('created_at') or '')[:10]  # "2026-04-01"
-    if len(created) < 10:
+    """Return display ID in YYMMDD-N format (e.g. 260401-1).
+    Uses planned date (date field) first, falls back to created_at.
+    """
+    planned = (r.get('date') or r.get('created_at') or '')[:10]
+    if len(planned) < 10:
         return (r.get('id') or '')[:8]
-    yymmdd = created[2:4] + created[5:7] + created[8:10]
+    yymmdd = planned[2:4] + planned[5:7] + planned[8:10]
     seq = r.get('day_seq', 0)
     return f"{yymmdd}-{seq}"

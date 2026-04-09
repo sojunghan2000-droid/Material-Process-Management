@@ -14,19 +14,34 @@ try:
 except Exception:
     pass
 
-# 한글 폰트 등록
+# 한글 폰트 등록 (Windows + Linux Cloud 환경 모두 지원)
 _FONT_NORMAL = "Helvetica"
 _FONT_BOLD   = "Helvetica-Bold"
 try:
     import os
-    _malgun     = "C:/Windows/Fonts/malgun.ttf"
-    _malgun_bd  = "C:/Windows/Fonts/malgunbd.ttf"
-    if os.path.exists(_malgun):
-        pdfmetrics.registerFont(TTFont("MalgunGothic", _malgun))
-        _FONT_NORMAL = "MalgunGothic"
-    if os.path.exists(_malgun_bd):
-        pdfmetrics.registerFont(TTFont("MalgunGothic-Bold", _malgun_bd))
-        _FONT_BOLD = "MalgunGothic-Bold"
+    # 폰트 후보 목록: Windows → Linux (Nanum) 순서로 탐색
+    _candidates_normal = [
+        "C:/Windows/Fonts/malgun.ttf",                                  # Windows
+        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",              # Ubuntu/Debian (fonts-nanum)
+        "/usr/share/fonts/nanum/NanumGothic.ttf",                       # CentOS/RHEL
+        "/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf",         # 대체
+    ]
+    _candidates_bold = [
+        "C:/Windows/Fonts/malgunbd.ttf",
+        "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf",
+        "/usr/share/fonts/nanum/NanumGothicBold.ttf",
+        "/usr/share/fonts/truetype/nanum/NanumBarunGothicBold.ttf",
+    ]
+    for _path in _candidates_normal:
+        if os.path.exists(_path):
+            pdfmetrics.registerFont(TTFont("KoreanFont", _path))
+            _FONT_NORMAL = "KoreanFont"
+            break
+    for _path in _candidates_bold:
+        if os.path.exists(_path):
+            pdfmetrics.registerFont(TTFont("KoreanFont-Bold", _path))
+            _FONT_BOLD = "KoreanFont-Bold"
+            break
 except Exception:
     pass
 

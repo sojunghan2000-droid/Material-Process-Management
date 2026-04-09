@@ -66,6 +66,19 @@ def generate_all_outputs(sb: Client, rid: str) -> Dict[str, str]:
     sic_default = settings_get(sb, "sic_training_url_default", "https://example.com/visitor-training")
     sic_url = (req.get("sic_training_url") or "").strip() or sic_default
 
+    # day_seq 계산 — 반입예정일(date) 기준 당일 순번
+    planned_date = (req.get("date") or req.get("created_at") or "")[:10]
+    pid = req.get("project_id", "")
+    try:
+        same_day = (sb.table("requests")
+                    .select("id,created_at")
+                    .eq("project_id", pid)
+                    .eq("date", planned_date)
+                    .lte("created_at", req.get("created_at", ""))
+                    .execute())
+        req["day_seq"] = len(same_day.data) if same_day.data else 1
+    except Exception:
+        req["day_seq"] = 1
     disp = req_display_id(req)
 
     qr_path  = out["qr"] / f"{disp}_sic_qr.png"
